@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>로봇 의사소통 평가 설문</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* VOICE: 차분한 연구용 설문. 한 화면에 한 단계.
+   IDEA: 영상 → 구간 다시 보기 → 문항이 아래로 차례로 열리는 시청 노트.
+   PICTURE: 각 단계의 영상 자체.
+   COLOUR/TYPE: 이전 설문과 같은 회색 바탕 + 파랑 강조, IBM Plex Sans KR.
+   LAYOUT: 한 열(최대 760px), 위 진행 막대 고정. */
+:root {
+  --bg: #f4f4f4; --surface: #ffffff; --fg: #171717; --muted: #6b6b6b; --line: #e0e0e0;
+  --accent: #1d3fd0; --accent-ink: #ffffff; --accent-soft: #eef1fc; --warn: #c0262d; --warn-soft: #fdeeee;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121212; --surface: #1c1c1c; --fg: #ededed; --muted: #a3a3a3; --line: #333333;
+  --accent: #7d95ff; --accent-ink: #0b0f22; --accent-soft: #1e2446; --warn: #f08a90; --warn-soft: #3a1d21; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #121212; --surface: #1c1c1c; --fg: #ededed; --muted: #a3a3a3; --line: #333333;
+  --accent: #7d95ff; --accent-ink: #0b0f22; --accent-soft: #1e2446; --warn: #f08a90; --warn-soft: #3a1d21; color-scheme: dark; }
+* { box-sizing: border-box; min-width: 0; }
+[hidden] { display: none !important; }
+html, body { background: var(--bg); color: var(--fg); }
+body { margin: 0; font-family: var(--font-body); font-size: 16px; line-height: 1.6; -webkit-text-size-adjust: 100%; word-break: keep-all; overflow-wrap: anywhere; overflow-x: clip; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.35; margin: 0; }
+p { margin: 0; }
+button { font: inherit; color: inherit; }
+html { scroll-padding-top: 72px; }
+
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--bg); border-bottom: 1px solid var(--line);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
+.topbar-in { max-width: 760px; margin: 0 auto; padding-block: 10px; display: flex; align-items: center; gap: 14px; }
+.topbar .label { font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.track { flex: 1; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.track > i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .3s ease; }
+.step-no { font-family: var(--font-mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+main { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 72px; }
+.wrap { max-width: 760px; margin: 0 auto; }
+.stack { display: grid; gap: 18px; }
+.eyebrow { font-size: 13px; font-weight: 600; color: var(--accent); }
+.title { font-size: clamp(22px, 4.4vw, 28px); font-weight: 700; margin-top: 6px; }
+.lead { color: var(--muted); margin-top: 8px; }
+.muted { color: var(--muted); font-size: 14px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+.prose { display: grid; gap: 12px; font-size: 15px; }
+.err { color: var(--warn); font-size: 14px; font-weight: 500; }
+.note { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; background: var(--accent-soft); font-size: 15px; }
+.note svg { flex: none; width: 20px; height: 20px; margin-top: 2px; color: var(--accent); }
+
+.btn-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+.btn { border: 0; border-radius: 12px; padding: 14px 26px; font-weight: 600; cursor: pointer; background: var(--accent); color: var(--accent-ink); min-width: 140px; min-height: 48px; }
+.btn[disabled] { opacity: .4; cursor: not-allowed; }
+.btn.ghost { background: transparent; color: var(--fg); border: 1px solid var(--line); min-width: 0; }
+.linkbtn { background: transparent; border: 0; color: var(--accent); font-weight: 600; font-size: 14px; cursor: pointer; padding: 6px 0; min-height: 44px; }
+input:focus-visible, button:focus-visible, textarea:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* 선택지 */
+.opts { display: grid; gap: 10px; }
+.opts.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.opt { display: flex; gap: 14px; align-items: center; text-align: left; width: 100%; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 14px 16px; cursor: pointer; font-size: 15px; min-height: 52px; }
+.opt .dot { flex: none; width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; }
+.opt.check .dot { border-radius: 5px; }
+.opt[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.opt[aria-checked="true"] .dot { border-color: var(--accent); background: var(--accent); }
+.opt[aria-checked="true"] .dot::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-ink); }
+.opt.check[aria-checked="true"] .dot::after { width: 10px; height: 6px; border-radius: 0; background: none; border: solid var(--accent-ink); border-width: 0 0 2px 2px; transform: translateY(-1px) rotate(-45deg); }
+input[type=number], textarea { width: 100%; padding: 12px 14px; font: inherit; font-size: 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); }
+input[type=number] { max-width: 180px; }
+textarea { min-height: 130px; resize: vertical; line-height: 1.55; }
+
+/* 문항 */
+.part { display: grid; gap: 14px; }
+.group-head { display: grid; gap: 4px; border-top: 2px solid var(--fg); padding-top: 14px; }
+.group-no { font-size: 13px; font-weight: 600; color: var(--accent); }
+.group-q { font-size: 19px; font-weight: 700; }
+.items { display: grid; gap: 12px; }
+.item { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 12px; }
+.item.missing { border-color: var(--warn); background: var(--warn-soft); }
+.mc-wrap { border-radius: 14px; }
+.mc-wrap.missing { outline: 2px solid var(--warn); outline-offset: 4px; }
+.item .q { font-weight: 500; }
+.item .q b { font-family: var(--font-mono); font-weight: 500; color: var(--accent); font-size: 13px; margin-right: 8px; }
+.likert { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.likert button { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; min-height: 44px; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer; padding: 0; }
+.likert button[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.likert button:disabled { opacity: .45; cursor: not-allowed; }
+.lock { font-size: 13px; color: var(--muted); }
+
+.stage { display: grid; gap: 14px; padding: 20px; border-radius: 16px; background: var(--surface); border: 1px solid var(--line); }
+.stage-head { display: grid; gap: 4px; }
+.stage-head h3 { font-size: 20px; font-weight: 700; }
+.stage-head p { color: var(--muted); font-size: 15px; }
+.stage .item { border: 0; padding: 0; background: transparent; }
+.stage .item.missing { background: var(--warn-soft); padding: 12px; }
+.resume { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+.ends { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+
+/* 영상 */
+.vbox { position: relative; border-radius: 14px; overflow: hidden; background: #000; aspect-ratio: 16 / 9; }
+.vbox video { display: block; width: 100%; height: 100%; object-fit: contain; cursor: pointer; }
+.vplay { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; gap: 8px; align-items: center; padding: 12px 22px; border-radius: 999px; border: 0;
+  background: rgba(255,255,255,.94); color: #111; font-weight: 700; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,.3); white-space: nowrap; transition: opacity .2s; }
+.vplay svg { width: 18px; height: 18px; }
+.vbox.playing .vplay { opacity: 0; pointer-events: none; }
+.vbar { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; background: rgba(255,255,255,.22); }
+.vbar > i { display: block; height: 100%; width: 0; background: var(--accent); }
+.vtag { position: absolute; left: 10px; top: 10px; font-size: 12px; font-weight: 600; background: rgba(0,0,0,.62); color: #fff; padding: 3px 9px; border-radius: 6px; }
+.vstate { font-size: 14px; color: var(--muted); text-align: center; }
+.vstate.ok { color: var(--accent); font-weight: 600; }
+.reveal { animation: reveal .4s ease; }
+@keyframes reveal { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .reveal { animation: none; } .track > i, .vplay { transition: none; } }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: clamp(26px, 5vw, 44px); display: grid; gap: 16px; }
+.card h2 { font-size: clamp(24px, 4.6vw, 34px); font-weight: 700; }
+.card h2 em { font-style: normal; color: var(--accent); }
+.code { font-family: var(--font-mono); font-size: 12px; background: var(--bg); border: 1px dashed var(--line); padding: 10px 12px; border-radius: 8px; white-space: pre-wrap; word-break: break-all; max-height: 260px; overflow: auto; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <span class="label" id="stepLabel">연구 안내</span>
+    <div class="track" aria-hidden="true"><i id="bar"></i></div>
+    <span class="step-no" id="stepNo"></span>
+  </div>
+</header>
+<main><div class="wrap" id="app"></div></main>
+
+<script>
+{
+  // ================= 연구자 설정 =================
+  // 구글 시트 Apps Script 웹 앱 URL(https://script.google.com/macros/s/.../exec). 비우면 미리보기 모드(전송 안 함).
+  const SUBMIT_URL = "";
+  const VER = "v5"; // v5: 고정 순서(ALL→noVOICE→noFACE→noLIGHTING→noGESTURE), 안내 문구 정리 // v4: 최종 수정 요청 반영(안내문, ALL 포함 5조건 균형화, 전반적 평가 화면 분리, 조작점검 삭제, 이어하기)
+  const VIDEO_DIR = "videos/";
+  // 시나리오 순서: "AB"(현재), "BA", "counterbalance"(순서 번호가 홀수면 A→B, 짝수면 B→A)
+  const SCENARIO_ORDER = "AB";
+
+  // 구간(초): 영상 속 0.1초 검은 화면 전환 지점 기준. [시작, 끝], 끝이 null이면 영상 끝까지
+  const SEG = {
+    A: [[0, 13.63], [13.73, 26.9], [27.0, null]],
+    B: [[0, 12.47], [12.57, 26.9], [27.0, null]]
+  };
+  const SCEN = {
+    A: {
+      tag: "상황 01", title: "상황 01 — 외출 전 준비 상황",
+      intro: ["당신이 시청할 영상은 외출을 준비하는 사용자와 소셜 로봇의 대화 상황입니다.",
+              "사용자는 미팅에 가기 전 빠뜨린 물건이 없는지 확인하고자 로봇에게 도움을 요청합니다."],
+      gf2: ["지갑 위치 안내", "방금 시청한 영상 중 로봇이 지갑의 위치를 안내하는 장면을 다시 보여드립니다.",
+            "로봇은 사용자가 지갑의 위치를 파악할 수 있도록 명확하게 안내하였다."]
+    },
+    B: {
+      tag: "상황 02", title: "상황 02 — 힘든 하루에 대한 대화",
+      intro: ["당신이 시청할 영상은 힘든 하루를 보낸 사용자와 소셜 로봇의 대화 상황입니다.",
+              "사용자는 하루 동안 겪었던 일과 자신의 감정을 로봇에게 이야기하고자 합니다."],
+      gf2: ["사용자의 이야기에 대한 반응", "방금 시청한 영상 중 로봇이 사용자의 이야기에 반응하는 장면을 다시 보여드립니다.",
+            "로봇은 사용자의 힘든 감정에 적절하게 공감하고 위로하였다."]
+    }
+  };
+  const STAGES = s => [
+    ["GF1", "대화 시작", "방금 시청한 영상 중 대화가 시작되는 장면을 다시 보여드립니다.", "로봇은 사용자의 호출과 요청에 적절하게 반응하며 대화를 시작하였다."],
+    ["GF2", ...SCEN[s].gf2],
+    ["GF3", "대화 마무리", "방금 시청한 영상 중 대화가 마무리되는 장면을 다시 보여드립니다.", "로봇은 사용자의 마지막 발화에 적절하게 응답하며 대화를 자연스럽게 마무리하였다."]
+  ];
+  const OVERALL = [
+    ["C1", "로봇은 사용자의 말과 행동에 잘 반응하는 것처럼 느껴졌다."],
+    ["C2", "로봇은 신뢰할 수 있는 존재처럼 느껴졌다."],
+    ["C3", "로봇은 유능해 보였다."],
+    ["S1", "로봇은 영상 속 사용자를 이해하는 것처럼 느껴졌다."],
+    ["S2", "이 로봇과 상호작용한다면 즐거울 것 같다."],
+    ["S3", "로봇은 친절한 인상을 주었다."],
+    ["SAT1", "나는 이 로봇에 만족한다."],
+    ["SAT2", "나는 이 로봇을 친구에게 추천하고 싶다."],
+    ["SAT3", "이 로봇을 사용하는 것은 즐겁다."]
+  ];
+  const SCALE = ["전혀 그렇지 않다", "그렇지 않다", "약간 그렇지 않다", "보통이다", "약간 그렇다", "그렇다", "매우 그렇다"];
+  const GENDERS = ["여성", "남성"];
+  const CONDS = ["ALL", "noVOICE", "noFACE", "noLIGHTING", "noGESTURE"]; // 데이터 열 순서(고정)
+  // 5조건 균형 라틴 방격(Williams, 10개 순서): 각 조건이 1~5번째 위치에 똑같이(2번씩) 오고, 바로 앞뒤 조건 쌍도 균형
+  const BASE = [0, 1, 4, 2, 3];
+  // 지금은 균형화하지 않고 모든 참가자에게 같은 순서로 제시. 나중에 균형화하려면 BALANCE = true
+  const BALANCE = false;
+  const FIXED_ORDER = ["ALL", "noVOICE", "noFACE", "noLIGHTING", "noGESTURE"]; // 순서를 바꾸려면 이 배열만 수정
+  const SEQS = [];
+  for (let i = 0; i < 5; i++) SEQS.push(BASE.map(x => CONDS[(x + i) % 5]));
+  for (let i = 0; i < 5; i++) SEQS.push(BASE.map(x => CONDS[(x + i) % 5]).reverse());
+
+  // ================= 참가자 ID와 순서 배정 =================
+  // 링크: ?pid=P001 (또는 아티팩트에서는 #p-P001) → 숫자 부분으로 순서 1~10 배정. ?g=1~10(#g3)으로 직접 지정 가능.
+  // ID가 없으면 무작위 ID를 만들고 그 ID로 배정. ?dev=1 또는 #dev 를 붙이면 영상 건너뛰기 버튼(연구자 점검용)
+  const qs = (() => { try { return new URLSearchParams(location.search); } catch { return new URLSearchParams(); } })();
+  const H = location.hash;
+  const DEV = qs.has("dev") || /dev/.test(H);
+  const urlPid = (qs.get("pid") || (H.match(/p-([A-Za-z0-9]+)/) || [])[1] || "").trim();
+  const urlG = Number(qs.get("g") || (H.match(/(?:^#|-)g(\d{1,2})/) || [])[1]) || 0;
+  function assign(pid) {
+    if (urlG >= 1 && urlG <= 10) return [urlG, "url"];
+    const num = (pid.match(/(\d+)(?!.*\d)/) || [])[1];
+    if (num) return [((Number(num) - 1) % 10 + 10) % 10 + 1, "pid_number"];
+    let h = 0; for (const ch of pid) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return [h % 10 + 1, "pid_hash"];
+  }
+
+  // ================= 상태 (새로고침해도 이어서 진행) =================
+  const LS_KEY = "robotCommSurvey.progress.v5";
+  const fresh = () => {
+    const id = urlPid || "R" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
+    const [seq, seqSource] = assign(id);
+    const sorder = SCENARIO_ORDER === "BA" ? ["B", "A"] : SCENARIO_ORDER === "counterbalance" && seq % 2 === 0 ? ["B", "A"] : ["A", "B"];
+    return { id, pidFromUrl: !!urlPid, seq: BALANCE ? seq : "", seqSource: BALANCE ? seqSource : "fixed", sorder, order: BALANCE ? SEQS[seq - 1] : FIXED_ORDER.slice(),
+      startedAt: new Date().toISOString(), consent: "", age: "", gender: "", interest: 0, attitude: 0,
+      v: {}, comment: "", times: {}, step: 0 };
+  };
+  let S = null, resumed = false;
+  try {
+    const saved = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+    if (saved && saved.ver === VER && !saved.submittedAt && saved.step > 0 && (!urlPid || saved.id === urlPid)) { S = saved; resumed = true; }
+  } catch {}
+  if (!S) S = fresh();
+  S.ver = VER;
+  const save = () => { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch {} };
+
+  const STEPS = [{ k: "consent" }, { k: "pre" }, { k: "guide" }];
+  S.sorder.forEach((s, si) => {
+    STEPS.push({ k: "sintro", s });
+    S.order.forEach((c, i) => {
+      STEPS.push({ k: "video", s, c, pos: i + 1, last: i === S.order.length - 1 });
+      STEPS.push({ k: "overall", s, c, pos: i + 1, last: i === S.order.length - 1, lastAll: si === 1 && i === S.order.length - 1 });
+    });
+  });
+  STEPS.push({ k: "post" }, { k: "done" });
+  let step = Math.min(S.step || 0, STEPS.length - 2), stepStart = Date.now(), declined = false;
+
+  const app = document.getElementById("app");
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const key = st => st.s + "_" + st.c;
+  const playIcon = `<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M6 4l10 6-10 6z" fill="currentColor"/></svg>`;
+
+  // ================= 진행 =================
+  function setProgress() {
+    const st = STEPS[step], total = STEPS.length - 1;
+    const label = { consent: "연구 안내", pre: "사전 설문", guide: "영상 평가 안내", post: "최종 설문", done: "설문 종료" }[st.k] || SCEN[st.s].tag;
+    const pct = st.k === "done" ? 100 : Math.round(step / total * 100);
+    document.getElementById("stepLabel").textContent = label;
+    document.getElementById("stepNo").textContent = pct + "%";
+    document.getElementById("bar").style.width = pct + "%";
+  }
+  function tkey(st) { return st.k === "video" ? key(st) + "_watch" : st.k === "overall" ? key(st) + "_overall" : st.k === "sintro" ? "intro_" + st.s : st.k; }
+  function go(next) {
+    const tk = tkey(STEPS[step]);
+    S.times[tk] = Math.round((Date.now() - stepStart) / 100) / 10 + (S.times[tk] || 0);
+    document.querySelectorAll("video").forEach(v => v.pause());
+    step = next; S.step = next; stepStart = Date.now(); resumed = false;
+    save(); render();
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }
+  window.addEventListener("beforeunload", e => {
+    const k = STEPS[step].k;
+    if (!declined && k !== "consent" && k !== "done") { e.preventDefault(); e.returnValue = ""; }
+  });
+
+  function render() {
+    setProgress();
+    if (declined) return renderDeclined();
+    const st = STEPS[step];
+    ({ consent: renderConsent, pre: renderPre, guide: renderGuide, sintro: renderSIntro, video: renderVideo, overall: renderOverall, post: renderPost, done: renderDone })[st.k](st);
+    if (resumed && step > 0 && STEPS[step].k !== "done") {
+      const bar = document.createElement("div");
+      bar.className = "note resume";
+      bar.innerHTML = `<span>이전에 진행하던 설문을 이어서 진행합니다. 응답한 내용은 그대로 저장되어 있습니다.</span><button class="linkbtn" type="button" id="restart">처음부터 다시 시작</button>`;
+      app.prepend(bar);
+      document.getElementById("restart").onclick = () => { try { localStorage.removeItem(LS_KEY); } catch {} S = null; location.reload(); };
+    }
+  }
+
+  // ================= 공용 조각 =================
+  const likert = (id, label, val, locked) => `
+    <div class="item" id="item-${id}">
+      <p class="q" id="q-${id}">${label}</p>
+      <div class="likert" role="radiogroup" aria-labelledby="q-${id}">
+        ${SCALE.map((t, i) => `<button type="button" role="radio" data-k="${id}" data-v="${i + 1}" aria-checked="${val === i + 1}" aria-label="${i + 1}점 ${t}" ${locked ? "disabled" : ""}>${i + 1}</button>`).join("")}
+      </div>
+      <div class="ends" aria-hidden="true"><span>전혀 그렇지 않다</span><span>매우 그렇다</span></div>
+    </div>`;
+  function bindLikert(root, onPick) {
+    root.querySelectorAll(".likert button").forEach(b => b.onclick = () => {
+      const k = b.dataset.k, v = Number(b.dataset.v);
+      b.parentElement.querySelectorAll("button").forEach(x => x.setAttribute("aria-checked", x === b));
+      document.getElementById("item-" + k).classList.remove("missing");
+      onPick(k, v); save();
+    });
+  }
+  const radios = (name, opts, val, cls = "") => `<div class="opts ${cls}" role="radiogroup" aria-labelledby="${name}-label">
+      ${opts.map(o => `<button type="button" class="opt" role="radio" data-r="${name}" data-v="${esc(o)}" aria-checked="${val === o}"><span class="dot"></span><span>${o}</span></button>`).join("")}</div>`;
+  function bindRadios(name, onPick) {
+    app.querySelectorAll(`[data-r="${name}"]`).forEach(b => b.onclick = () => {
+      app.querySelectorAll(`[data-r="${name}"]`).forEach(x => x.setAttribute("aria-checked", x === b));
+      onPick(b.dataset.v); save();
+    });
+  }
+  function flagMissing(ids, errEl, msg) {
+    ids.forEach(id => document.getElementById("item-" + id)?.classList.add("missing"));
+    errEl.textContent = msg; errEl.hidden = false;
+    (document.getElementById("item-" + ids[0]) || errEl).scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  // 영상 플레이어: start~end 구간만 재생, 앞뒤로 건너뛰는 조작은 없음
+  const players = new Set();
+  function player(box, { start = 0, end = null, onEnd, label = "영상 재생", watched = false }) {
+    const v = box.querySelector("video"), btn = box.querySelector(".vplay"), txt = btn.querySelector("span"), bar = box.querySelector(".vbar > i");
+    let raf = 0, done = false;
+    if (watched) txt.textContent = "다시 보기";
+    const E = () => (end == null ? v.duration : end);
+    const finish = () => {
+      v.pause(); cancelAnimationFrame(raf); box.classList.remove("playing");
+      bar.style.width = "100%"; txt.textContent = "다시 보기"; done = true;
+      onEnd && onEnd();
+    };
+    const tick = () => {
+      const d = E() - start;
+      if (d > 0) bar.style.width = Math.min(100, Math.max(0, (v.currentTime - start) / d * 100)) + "%";
+      if (end != null && v.currentTime >= end) return finish();
+      raf = requestAnimationFrame(tick);
+    };
+    v.addEventListener("play", () => {
+      players.forEach(p => p !== v && p.pause());
+      box.classList.add("playing"); cancelAnimationFrame(raf); raf = requestAnimationFrame(tick);
+    });
+    v.addEventListener("pause", () => { box.classList.remove("playing"); cancelAnimationFrame(raf); if (!done) txt.textContent = "계속 재생"; });
+    v.addEventListener("ended", () => { if (end == null) finish(); });
+    players.add(v);
+    async function play() {
+      if (done || v.currentTime < start - 0.05 || v.currentTime >= E() - 0.05) { try { v.currentTime = start; } catch {} }
+      done = false; txt.textContent = label;
+      try { await v.play(); return true; } catch { box.classList.remove("playing"); txt.textContent = label; return false; }
+    }
+    const toggle = () => (v.paused ? play() : v.pause());
+    btn.onclick = toggle; v.onclick = toggle;
+    return { play, skip() { finish(); } };
+  }
+  const vbox = (id, src, start, tag, label) => `
+    <div class="vbox" id="${id}">
+      <video src="${src}#t=${start}" playsinline preload="auto"></video>
+      ${tag ? `<span class="vtag">${tag}</span>` : ""}
+      <button class="vplay" type="button">${playIcon}<span>${label}</span></button>
+      <div class="vbar"><i></i></div>
+    </div>`;
+  const rec = st => S.v[key(st)] || (S.v[key(st)] = { scenario: st.s, condition: st.c, pos: st.pos, plays: 0, segPlays: [0, 0, 0], segDone: [0, 0, 0], open: 0 });
+
+  // ================= 화면 =================
+  function renderConsent() {
+    app.innerHTML = `
+      <div class="stack">
+        <h1 class="title">일상 대화 상황에서 소셜 로봇의 의사소통 표현 방식에 대한 사용자 평가</h1>
+        <div class="prose">
+          <p>안녕하세요.</p>
+          <p>본 설문은 소셜 로봇이 일상적인 상황에서 사용자와 대화할 때, <b>로봇이 사용하는 다양한 의사소통 표현 방식에 대한 사용자의 인식과 평가</b>를 알아보기 위해 실시됩니다.</p>
+          <p>참가자께서는 서로 다른 두 가지 일상 상황에서 사용자와 소셜 로봇이 대화하는 영상을 시청하게 됩니다.</p>
+          <p>각 상황에서는 총 5개의 영상이 제시되며, 영상을 시청한 후 로봇의 반응과 의사소통 표현 방식에 대한 질문에 응답하게 됩니다.</p>
+          <p>먼저 대화의 전체 과정을 시청한 후, 대화의 일부 장면을 다시 보며 각 단계에서 로봇이 어떻게 반응했는지 평가하게 됩니다. 이후 영상 속 로봇에 대한 전반적인 인상을 평가해 주세요.</p>
+          <p>모든 질문에는 정답이나 오답이 없으며, 영상에서 관찰한 내용과 개인적으로 느낀 인상을 바탕으로 솔직하게 응답해 주시기 바랍니다.</p>
+          <p>응답 내용은 연구 목적으로만 활용되며, 연구 참여 및 자료 처리에 관한 사항은 별도로 제공되는 연구 설명문과 동의서에 따릅니다.</p>
+          <p>바쁘신 가운데 연구에 참여해 주셔서 감사합니다.</p>
+        </div>
+        <section class="part">
+          <div class="group-head"><span class="group-no">참여 동의</span>
+            <h3 class="group-q" id="consent-label">본 연구의 설명을 확인하였으며, 자발적으로 연구에 참여하는 데 동의하십니까?</h3></div>
+          ${radios("consent", ["동의합니다.", "동의하지 않습니다."], S.consent, "two")}
+        </section>
+        <p class="err" id="err" hidden>동의 여부를 선택해 주세요.</p>
+        <div class="btn-row"><button class="btn" type="button" id="next">다음</button></div>
+      </div>`;
+    bindRadios("consent", v => { S.consent = v; document.getElementById("err").hidden = true; });
+    document.getElementById("next").onclick = () => {
+      if (!S.consent) return (document.getElementById("err").hidden = false);
+      if (S.consent === "동의하지 않습니다.") { declined = true; return render(); }
+      go(step + 1);
+    };
+  }
+  function renderDeclined() {
+    document.getElementById("stepLabel").textContent = "설문 종료";
+    document.getElementById("stepNo").textContent = "";
+    app.innerHTML = `<div class="card"><h2>설문을 종료합니다.</h2><p>연구 참여에 동의하지 않으셨으므로 설문이 진행되지 않습니다. 시간 내어 확인해 주셔서 감사합니다.</p>
+      <div class="btn-row" style="justify-content:flex-start"><button class="btn ghost" type="button" id="back">동의 화면으로 돌아가기</button></div></div>`;
+    document.getElementById("back").onclick = () => { declined = false; S.consent = ""; render(); };
+  }
+
+  function renderPre() {
+    app.innerHTML = `
+      <div class="stack">
+        <div><p class="eyebrow">사전 설문</p><h2 class="title">기본 정보와 평소 로봇에 대한 생각을 알려 주세요.</h2>
+          <p class="lead">다음은 참가자의 기본 특성과 평소 로봇에 대한 인식을 파악하기 위한 질문입니다.</p></div>
+        <div class="item" id="item-age">
+          <label class="q" for="age"><b>Q1</b>연령을 입력해 주세요. <span class="muted">(만 나이, 숫자)</span></label>
+          <input type="number" id="age" inputmode="numeric" min="14" max="99" placeholder="예: 25" value="${esc(S.age)}">
+        </div>
+        <div class="item" id="item-gender">
+          <p class="q" id="gender-label"><b>Q2</b>성별을 선택해 주세요.</p>
+          ${radios("gender", GENDERS, S.gender, "two")}
+        </div>
+        ${likert("interest", "<b>Q3</b>나는 평소 로봇에 관심이 있다.", S.interest)}
+        ${likert("attitude", "<b>Q4</b>나는 로봇에 대해 전반적으로 긍정적인 인식을 가지고 있다.", S.attitude)}
+        <p class="err" id="err" hidden></p>
+        <div class="btn-row"><button class="btn ghost" type="button" id="back">이전</button><button class="btn" type="button" id="next">다음</button></div>
+      </div>`;
+    const age = document.getElementById("age");
+    age.oninput = () => { S.age = age.value.trim(); document.getElementById("item-age").classList.remove("missing"); save(); };
+    bindRadios("gender", v => { S.gender = v; document.getElementById("item-gender").classList.remove("missing"); });
+    bindLikert(app, (k, v) => { S[k] = v; });
+    document.getElementById("back").onclick = () => go(step - 1);
+    document.getElementById("next").onclick = () => {
+      const err = document.getElementById("err"); err.hidden = true;
+      const a = Number(S.age);
+      if (!S.age || !Number.isInteger(a) || a < 14 || a > 99) return flagMissing(["age"], err, "연령을 숫자로 정확히 입력해 주세요.");
+      const miss = [["gender", S.gender], ["interest", S.interest], ["attitude", S.attitude]].filter(([, v]) => !v).map(([k]) => k);
+      if (miss.length) return flagMissing(miss, err, `응답하지 않은 문항이 ${miss.length}개 있습니다.`);
+      go(step + 1);
+    };
+  }
+
+  function renderGuide() {
+    app.innerHTML = `
+      <div class="card">
+        <p class="eyebrow">영상 평가 안내</p>
+        <h2>영상 평가 안내</h2>
+        <p>지금부터 사용자와 소셜 로봇이 대화하는 영상을 시청하게 됩니다.</p>
+        <p>먼저 대화의 전체 과정을 시청한 후, 영상의 일부 장면을 다시 보며 로봇의 반응을 평가하게 됩니다.</p>
+        <p>이후 영상 속 로봇에 대한 전반적인 인상을 평가해 주세요.</p>
+        <p>모든 질문에는 정답이나 오답이 없으며, 관찰한 내용과 개인적으로 느낀 인상을 바탕으로 응답해 주세요.</p>
+        <div class="note"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8h3l4-4v12l-4-4H3z" fill="currentColor"/><path d="M13 7a4 4 0 010 6M15.5 4.5a7.5 7.5 0 010 11" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
+          <span>영상에는 소리가 포함되어 있으므로 스피커 또는 이어폰을 사용할 수 있는 환경에서 참여해 주세요. 영상 속 사용자의 말은 화면 아래에 자막으로 표시됩니다.</span></div>
+        <div class="btn-row" style="justify-content:flex-start"><button class="btn ghost" type="button" id="back">이전</button><button class="btn" type="button" id="next">시작하기</button></div>
+      </div>`;
+    document.getElementById("back").onclick = () => go(step - 1);
+    document.getElementById("next").onclick = () => go(step + 1);
+  }
+
+  function renderSIntro(st) {
+    const sc = SCEN[st.s];
+    app.innerHTML = `
+      <div class="card">
+        <p class="eyebrow">${sc.tag}</p>
+        <h2>${sc.title}</h2>
+        ${sc.intro.map(t => `<p>${t}</p>`).join("")}
+        <div class="stage-head" style="margin-top:8px;border-top:1px solid var(--line);padding-top:16px">
+          <h3 style="font-size:17px">영상 시청 안내</h3>
+          <p>앞으로 제시되는 영상을 시청하고, 영상 속 로봇에 대해 평가해 주세요.</p>
+          <p>모든 질문에는 정답이나 오답이 없으므로, 본인이 관찰하고 느낀 바를 바탕으로 응답해 주시기 바랍니다.</p>
+        </div>
+        <div class="btn-row" style="justify-content:flex-start"><button class="btn" type="button" id="next">영상 보기</button></div>
+      </div>`;
+    document.getElementById("next").onclick = () => go(step + 1);
+  }
+
+  function renderVideo(st) {
+    const A = rec(st), src = VIDEO_DIR + key(st) + ".mp4", stages = STAGES(st.s);
+    players.clear();
+    app.innerHTML = `
+      <div class="stack">
+        <div><p class="eyebrow">${SCEN[st.s].tag}</p>
+          <h2 class="title">영상을 끝까지 시청해 주세요.</h2>
+          <p class="lead">영상이 끝나면 같은 영상의 장면을 다시 보며 단계별로 평가합니다.</p></div>
+        ${vbox("vMain", src, 0, "", A.watched ? "다시 보기" : "영상 재생")}
+        <p class="vstate" id="vState">재생 버튼을 눌러 영상을 시청해 주세요.</p>
+        ${DEV ? `<button class="linkbtn" type="button" id="devSkip">[점검용] 영상 건너뛰기</button>` : ""}
+        ${stages.map(([id, title, hint, q], i) => `
+        <section class="stage" id="part${i}" hidden>
+          <div class="stage-head"><h3>${title}</h3><p>${hint}</p></div>
+          ${vbox("seg" + i, src, SEG[st.s][i][0], title + " 장면", "장면 재생")}
+          ${likert(id, q, A[id])}
+        </section>`).join("")}
+        <p class="err" id="err" hidden></p>
+        <div class="btn-row" id="navRow" hidden><button class="btn" type="button" id="next">다음</button></div>
+      </div>`;
+
+    const state = document.getElementById("vState");
+    const watchedMsg = () => { state.textContent = "시청을 마쳤습니다. 아래에서 장면별 평가를 진행해 주세요."; state.className = "vstate ok"; };
+    const segP = [];
+    const open = (i, autoplay) => {
+      if (A.open > i) return;
+      A.open = i + 1; save();
+      if (i === 3) { document.getElementById("navRow").hidden = false; return; }
+      const sec = document.getElementById("part" + i);
+      sec.hidden = false; sec.classList.add("reveal");
+      setTimeout(() => sec.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }), 60);
+      if (autoplay && segP[i]) segP[i].play();
+    };
+    const main = player(document.getElementById("vMain"), {
+      watched: !!A.watched,
+      onEnd: () => { if (!A.watched) { A.watched = 1; save(); } watchedMsg(); open(0, true); }
+    });
+    const mainV = document.querySelector("#vMain video");
+    mainV.addEventListener("play", () => {
+      if (!A.watched) state.textContent = "재생 중입니다. 영상을 끝까지 시청해 주세요.";
+      if (mainV.currentTime < 0.3) { A.plays++; save(); }
+    });
+    stages.forEach(([id], i) => {
+      const [s, e] = SEG[st.s][i];
+      segP[i] = player(document.getElementById("seg" + i), { start: s, end: e, label: "장면 재생", watched: !!A.segDone[i],
+        onEnd: () => {
+          if (!A.segDone[i]) { A.segDone[i] = 1; save(); }
+        } });
+      const sv = document.querySelector(`#seg${i} video`);
+      sv.addEventListener("play", () => { if (sv.currentTime < s + 0.3) { A.segPlays[i]++; save(); } });
+    });
+
+    // 이어서 진행할 때 이미 연 단계는 펼쳐 둠
+    if (A.watched) watchedMsg();
+    for (let i = 0; i < Math.min(A.open, 3); i++) document.getElementById("part" + i).hidden = false;
+    if (A.open > 3) document.getElementById("navRow").hidden = false;
+
+    bindLikert(app, (id, v) => {
+      A[id] = v;
+      const gi = stages.findIndex(p => p[0] === id);
+      if (gi >= 0) open(gi + 1, gi + 1 < 3);
+    });
+    if (DEV) document.getElementById("devSkip").onclick = () => main.skip();
+
+    document.getElementById("next").onclick = () => {
+      const err = document.getElementById("err"); err.hidden = true;
+      const miss = stages.map(p => p[0]).filter(id => !A[id]);
+      if (miss.length) return flagMissing(miss, err, `응답하지 않은 문항이 ${miss.length}개 있습니다.`);
+      go(step + 1);
+    };
+  }
+
+  function renderOverall(st) {
+    const A = rec(st), src = VIDEO_DIR + key(st) + ".mp4";
+    players.clear();
+    app.innerHTML = `
+      <div class="stack">
+        <div><p class="eyebrow">${SCEN[st.s].tag}</p>
+          <h2 class="title">로봇에 대한 전반적 평가</h2>
+          <p class="lead">지금까지 시청한 전체 대화 장면을 떠올리며, 영상 속 로봇에 대한 전반적인 인상을 평가해 주세요.</p></div>
+        <div><button class="linkbtn" type="button" id="rewatchBtn" aria-expanded="false">▸ 전체 영상 다시 보기</button></div>
+        <div id="rewatch" hidden>${vbox("vMain", src, 0, "", "영상 재생")}</div>
+        <div class="items">${OVERALL.map(([id, t]) => likert(id, t, A[id])).join("")}</div>
+        <p class="err" id="err" hidden></p>
+        <div class="btn-row"><button class="btn" type="button" id="next">${st.lastAll ? "다음" : st.last ? "다음 상황으로" : "다음 영상"}</button></div>
+      </div>`;
+    let rp = null;
+    document.getElementById("rewatchBtn").onclick = e => {
+      const box = document.getElementById("rewatch"), open = box.hidden;
+      box.hidden = !open; e.currentTarget.setAttribute("aria-expanded", open);
+      e.currentTarget.textContent = (open ? "▾ " : "▸ ") + "전체 영상 다시 보기";
+      if (open && !rp) rp = player(document.getElementById("vMain"), {});
+      if (open) rp.play(); else document.querySelector("#vMain video").pause();
+    };
+    bindLikert(app, (id, v) => { A[id] = v; });
+    document.getElementById("next").onclick = () => {
+      const err = document.getElementById("err"); err.hidden = true;
+      const miss = OVERALL.map(o => o[0]).filter(id => !A[id]);
+      if (miss.length) return flagMissing(miss, err, `응답하지 않은 문항이 ${miss.length}개 있습니다.`);
+      go(step + 1);
+    };
+  }
+
+  function renderPost() {
+    app.innerHTML = `
+      <div class="stack">
+        <div><p class="eyebrow">최종 설문</p><h2 class="title">모든 영상 평가가 완료되었습니다.</h2></div>
+        <div class="item">
+          <label class="q" for="comment">영상 속 로봇에 대해 추가로 남기고 싶은 의견이 있으시면 자유롭게 작성해 주세요. <span class="muted">(선택)</span></label>
+          <textarea id="comment" maxlength="2000">${esc(S.comment)}</textarea>
+        </div>
+        <div class="btn-row"><button class="btn" type="button" id="submit">제출하기</button></div>
+      </div>`;
+    const ta = document.getElementById("comment");
+    ta.oninput = () => { S.comment = ta.value; save(); };
+    document.getElementById("submit").onclick = () => { S.comment = ta.value.trim(); submit(); };
+  }
+
+  // ================= 데이터 =================
+  // participants 시트: 참가자 1명 = 1줄 (넓은 형식, SPSS용)
+  function wideRow(r) {
+    const row = {
+      participant_id: r.id, survey_ver: VER, order_seq: r.seq, order_seq_source: r.seqSource,
+      scenario_order: r.sorder.join(""), condition_order: r.order.join(">"),
+      started_at: r.startedAt, submitted_at: r.submittedAt,
+      age: r.age, gender: r.gender, robot_interest: r.interest, robot_attitude: r.attitude
+    };
+    for (const s of ["A", "B"]) for (const c of CONDS) {
+      const k = s + "_" + c, a = r.v[k] || {};
+      row[k + "_order"] = a.pos ?? "";
+      for (const [id] of STAGES(s)) row[k + "_" + id] = a[id] ?? "";
+      for (const [id] of OVERALL) row[k + "_" + id] = a[id] ?? "";
+      row[k + "_plays"] = a.plays ?? "";
+      [0, 1, 2].forEach(i => { row[k + "_seg" + (i + 1) + "_plays"] = a.segPlays ? a.segPlays[i] : ""; });
+      row[k + "_sec_watch"] = r.times[k + "_watch"] ?? "";
+      row[k + "_sec_overall"] = r.times[k + "_overall"] ?? "";
+    }
+    for (const t of ["consent", "pre", "guide", "intro_A", "intro_B", "post"]) row["sec_" + t] = r.times[t] ?? "";
+    row.final_comment = r.comment;
+    return row;
+  }
+  // ratings 시트: 영상 1개 = 1줄 (긴 형식, R/반복측정용)
+  function longRows(r) {
+    const rows = [];
+    r.sorder.forEach((s, si) => r.order.forEach(c => {
+      const a = r.v[s + "_" + c] || {};
+      const row = { participant_id: r.id, scenario: s, condition: c, presentation_order: a.pos ?? "", scenario_position: si + 1 };
+      for (const [id] of STAGES(s)) row[id] = a[id] ?? "";
+      for (const [id] of OVERALL) row[id] = a[id] ?? "";
+      rows.push(row);
+    }));
+    return rows;
+  }
+  const toCSV = rows => {
+    const q = v => { const s = String(v ?? ""); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    const cols = Object.keys(rows[0]);
+    return [cols.join(","), ...rows.map(r => cols.map(c => q(r[c])).join(","))].join("\n");
+  };
+
+  let saveResult = null;
+  async function sendToSheet(record) {
+    const body = JSON.stringify({ participants: wideRow(record), ratings: longRows(record) });
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetch(SUBMIT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body });
+        const out = await res.json().catch(() => null);
+        if (out && out.ok) return true;
+      } catch (e) {}
+      await new Promise(r => setTimeout(r, 1200 * (attempt + 1)));
+    }
+    return false;
+  }
+  async function submit() {
+    S.times.post = Math.round((Date.now() - stepStart) / 100) / 10 + (S.times.post || 0);
+    S.submittedAt = new Date().toISOString();
+    const record = JSON.parse(JSON.stringify(S));
+    saveResult = { record, remote: SUBMIT_URL ? "pending" : "preview" };
+    step = STEPS.length - 1; S.step = step; stepStart = Date.now();
+    if (!SUBMIT_URL) { try { localStorage.removeItem(LS_KEY); } catch {} }
+    render();
+    if (SUBMIT_URL) {
+      const ok = await sendToSheet(record);
+      saveResult.remote = ok ? "ok" : "fail";
+      if (ok) { try { localStorage.removeItem(LS_KEY); } catch {} } else { delete S.submittedAt; S.step = STEPS.length - 2; save(); }
+      renderDone();
+    }
+  }
+
+  function renderDone() {
+    setProgress();
+    const r = saveResult || {};
+    if (r.remote === "pending") {
+      app.innerHTML = `<div class="card"><h2>응답을 제출하는 중입니다…</h2><p class="muted">잠시만 기다려 주세요. 창을 닫지 마세요.</p></div>`;
+      return;
+    }
+    if (r.remote === "fail") {
+      app.innerHTML = `<div class="card"><h2>응답이 아직 저장되지 않았습니다.</h2>
+        <p>인터넷 연결을 확인한 뒤 아래 버튼을 눌러 다시 제출해 주세요. 응답한 내용은 그대로 남아 있습니다.</p>
+        <div class="btn-row" style="justify-content:flex-start"><button class="btn" type="button" id="resend">다시 제출하기</button></div>
+        <p class="muted">계속 저장되지 않으면 이 화면을 캡처해 연구자에게 보내 주세요. (응답 번호 ${esc(S.id)})</p></div>`;
+      const b = document.getElementById("resend");
+      b.onclick = async () => { b.disabled = true; b.textContent = "제출하는 중…"; const ok = await sendToSheet(r.record); r.remote = ok ? "ok" : "fail"; if (ok) { try { localStorage.removeItem(LS_KEY); } catch {} } renderDone(); };
+      return;
+    }
+    const preview = r.remote === "preview" && r.record;
+    app.innerHTML = `<div class="card"><h2>설문이 종료되었습니다.</h2>
+      <p>모든 영상 평가에 참여해 주셔서 감사합니다.</p>
+      <p>귀하께서 제공해 주신 응답은 소셜 로봇의 의사소통 방식에 대한 사용자 인식을 이해하기 위한 연구 자료로 활용됩니다.</p>
+      <p>소중한 시간을 내어 연구에 참여해 주셔서 진심으로 감사드립니다.</p>
+      ${preview ? `<div class="note"><span><b>미리보기 모드</b> · 전송 주소(SUBMIT_URL)가 비어 있어 응답이 저장되지 않았습니다. 아래는 구글 시트 두 탭에 들어갈 데이터입니다.</span></div>
+      <p class="q">participants (참가자 1명 = 1줄)</p>
+      <div class="btn-row" style="justify-content:flex-start;margin:0"><button class="btn ghost" type="button" data-copy="csvW">CSV 복사</button><button class="btn ghost" type="button" data-save="csvW" data-name="participants.csv">CSV 저장</button></div>
+      <pre class="code" id="csvW">${esc(toCSV([wideRow(r.record)]))}</pre>
+      <p class="q">ratings (영상 1개 = 1줄)</p>
+      <div class="btn-row" style="justify-content:flex-start;margin:0"><button class="btn ghost" type="button" data-copy="csvL">CSV 복사</button><button class="btn ghost" type="button" data-save="csvL" data-name="ratings.csv">CSV 저장</button></div>
+      <pre class="code" id="csvL">${esc(toCSV(longRows(r.record)))}</pre>` : ""}</div>`;
+    app.querySelectorAll("[data-copy]").forEach(b => b.onclick = async () => {
+      const el = document.getElementById(b.dataset.copy);
+      try { await navigator.clipboard.writeText(el.textContent); b.textContent = "복사됨"; }
+      catch { const rng = document.createRange(); rng.selectNodeContents(el); getSelection().removeAllRanges(); getSelection().addRange(rng); b.textContent = "선택됨 · Ctrl+C"; }
+    });
+    app.querySelectorAll("[data-save]").forEach(b => b.onclick = async () => {
+      const blob = new Blob(["\ufeff" + document.getElementById(b.dataset.save).textContent], { type: "text/csv" });
+      // Claude 아티팩트 미리보기에서는 downloads 기능으로, 일반 웹 호스팅에서는 파일 링크로 저장
+      const dl = window.claude && window.claude.use ? await window.claude.use("downloads").catch(() => null) : null;
+      if (dl) { try { await dl.save({ filename: b.dataset.name, data: blob }); return; } catch {} }
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = b.dataset.name; a.click();
+    });
+  }
+
+  render();
+}
+</script>
+</body>
+</html>
