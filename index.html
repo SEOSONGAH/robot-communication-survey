@@ -141,7 +141,7 @@ textarea { min-height: 130px; resize: vertical; line-height: 1.55; }
   // ================= 연구자 설정 =================
   // 구글 시트 Apps Script 웹 앱 URL(https://script.google.com/macros/s/.../exec). 비우면 미리보기 모드(전송 안 함).
   const SUBMIT_URL = "https://script.google.com/macros/s/AKfycbxjcQ6PENQM1IQNnqB6nmtFA1Vr-tZhFHH7QQdbg41QqeH8l6f8h9Ve6U908L12RoSf1A/exec";
-  const VER = "v6"; // v6: 20명 기준 역균형화(조건 순서 10 × 시나리오 순서 2), 시트 인원 수로 자동 배정
+  const VER = "v7"; // v7: 영상 평가 안내 문구 수정, 각 상황 두 번째 영상부터 "앞서 본 영상과 다른 점" 문항 추가 / v6: 20명 기준 역균형화(조건 순서 10 × 시나리오 순서 2), 시트 인원 수로 자동 배정
   const VIDEO_DIR = "videos/";
 
   // 구간(초): 영상 속 0.1초 검은 화면 전환 지점 기준. [시작, 끝], 끝이 null이면 영상 끝까지
@@ -458,8 +458,9 @@ textarea { min-height: 130px; resize: vertical; line-height: 1.55; }
         <p>먼저 대화의 전체 과정을 시청한 후, 영상의 일부 장면을 다시 보며 로봇의 반응을 평가하게 됩니다.</p>
         <p>이후 영상 속 로봇에 대한 전반적인 인상을 평가해 주세요.</p>
         <p>모든 질문에는 정답이나 오답이 없으며, 관찰한 내용과 개인적으로 느낀 인상을 바탕으로 응답해 주세요.</p>
+        <p>각 상황은 로봇의 표현 방식이 서로 다른 여러 버전의 영상으로 제시됩니다. 영상이 끝까지 재생되었다면 오류가 아니니, 보이는 그대로 평가해 주세요.</p>
         <div class="note"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8h3l4-4v12l-4-4H3z" fill="currentColor"/><path d="M13 7a4 4 0 010 6M15.5 4.5a7.5 7.5 0 010 11" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
-          <span>영상에는 소리가 포함되어 있으므로 스피커 또는 이어폰을 사용할 수 있는 환경에서 참여해 주세요. 영상 속 사용자의 말은 화면 아래에 자막으로 표시됩니다.</span></div>
+          <span>원활한 참여를 위해 스피커 또는 이어폰을 사용할 수 있는 환경에서 참여해 주세요. 영상 속 사용자의 말은 화면 아래에 자막으로 표시됩니다.</span></div>
         <div class="btn-row" style="justify-content:flex-start"><button class="btn ghost" type="button" id="back">이전</button><button class="btn" type="button" id="next">시작하기</button></div>
       </div>`;
     document.getElementById("back").onclick = () => go(step - 1);
@@ -557,6 +558,7 @@ textarea { min-height: 130px; resize: vertical; line-height: 1.55; }
 
   function renderOverall(st) {
     const A = rec(st), src = VIDEO_DIR + key(st) + ".mp4";
+    const askDiff = st.pos > 1; // 각 상황의 두 번째 영상부터: 앞서 본 영상과 다른 점
     players.clear();
     app.innerHTML = `
       <div class="stack">
@@ -566,6 +568,15 @@ textarea { min-height: 130px; resize: vertical; line-height: 1.55; }
         <div><button class="linkbtn" type="button" id="rewatchBtn" aria-expanded="false">▸ 전체 영상 다시 보기</button></div>
         <div id="rewatch" hidden>${vbox("vMain", src, 0, "", "영상 재생")}</div>
         <div class="items">${OVERALL.map(([id, t]) => likert(id, t, A[id])).join("")}</div>
+        ${askDiff ? `
+        <div class="item" id="item-diff">
+          <p class="q" id="diff-label">방금 본 영상에서 앞서 본 영상과 다르다고 느낀 점이 있었나요?</p>
+          ${radios("diff", ["예", "아니요"], A.diff || "", "two")}
+        </div>
+        <div class="item" id="item-diffText" ${A.diff === "예" ? "" : "hidden"}>
+          <label class="q" for="diffText">어떤 점이 달랐는지 자유롭게 적어 주세요.</label>
+          <textarea id="diffText" maxlength="1000">${esc(A.diff_text || "")}</textarea>
+        </div>` : ""}
         <p class="err" id="err" hidden></p>
         <div class="btn-row"><button class="btn" type="button" id="next">${st.lastAll ? "다음" : st.last ? "다음 상황으로" : "다음 영상"}</button></div>
       </div>`;
@@ -578,10 +589,26 @@ textarea { min-height: 130px; resize: vertical; line-height: 1.55; }
       if (open) rp.play(); else document.querySelector("#vMain video").pause();
     };
     bindLikert(app, (id, v) => { A[id] = v; });
+    if (askDiff) {
+      const box = document.getElementById("item-diffText"), ta = document.getElementById("diffText");
+      bindRadios("diff", v => {
+        A.diff = v;
+        document.getElementById("item-diff").classList.remove("missing");
+        box.hidden = v !== "예";
+        if (v === "예") { box.classList.add("reveal"); ta.focus({ preventScroll: true }); }
+        else { A.diff_text = ""; ta.value = ""; box.classList.remove("missing"); }
+      });
+      ta.oninput = () => { A.diff_text = ta.value; box.classList.remove("missing"); save(); };
+    }
     document.getElementById("next").onclick = () => {
       const err = document.getElementById("err"); err.hidden = true;
       const miss = OVERALL.map(o => o[0]).filter(id => !A[id]);
+      if (askDiff && !A.diff) miss.push("diff");
       if (miss.length) return flagMissing(miss, err, `응답하지 않은 문항이 ${miss.length}개 있습니다.`);
+      if (askDiff && A.diff === "예") {
+        A.diff_text = document.getElementById("diffText").value.trim(); save();
+        if (!A.diff_text) return flagMissing(["diffText"], err, "어떤 점이 달랐는지 적어 주세요.");
+      }
       go(step + 1);
     };
   }
@@ -622,6 +649,12 @@ textarea { min-height: 130px; resize: vertical; line-height: 1.55; }
     }
     for (const t of ["consent", "pre", "guide", "intro_A", "intro_B", "post"]) row["sec_" + t] = r.times[t] ?? "";
     row.final_comment = r.comment;
+    // v7 추가 열 (기존 열 순서를 바꾸지 않도록 맨 뒤에 붙임). 각 상황 첫 영상은 묻지 않으므로 빈칸
+    for (const s of ["A", "B"]) for (const c of CONDS) {
+      const a = r.v[s + "_" + c] || {};
+      row[s + "_" + c + "_diff"] = a.diff ?? "";
+      row[s + "_" + c + "_diff_text"] = a.diff_text ?? "";
+    }
     return row;
   }
   // ratings 시트: 영상 1개 = 1줄 (긴 형식, R/반복측정용)
@@ -632,6 +665,8 @@ textarea { min-height: 130px; resize: vertical; line-height: 1.55; }
       const row = { participant_id: r.id, scenario: s, condition: c, presentation_order: a.pos ?? "", scenario_position: si + 1 };
       for (const [id] of STAGES(s)) row[id] = a[id] ?? "";
       for (const [id] of OVERALL) row[id] = a[id] ?? "";
+      row.diff = a.diff ?? "";
+      row.diff_text = a.diff_text ?? "";
       rows.push(row);
     }));
     return rows;
